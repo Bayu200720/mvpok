@@ -125,9 +125,9 @@ complaintRouter.get('/complaints', async (req,res) => {
         if (err) return res.status(500).send({ auth: false, message: 'Failed to authenticate token.' });
         const cust = await Customer.findById(decoded.id);
         if( cust.role == 0){
-            const cust =  await Customer.find({});
-        if(cust && cust.length !== 0) {
-            res.json(cust)
+            const complaints =  await Complaint.find({});
+        if(complaints && complaints.length !== 0) {
+            res.json(complaints)
         } else {
             res.status(404).json({
                 message: 'Complaint not found'
@@ -139,7 +139,7 @@ complaintRouter.get('/complaints', async (req,res) => {
     })
 });
 
-
+// check auth
 complaintRouter.get('/check', function(req, res) {
     //header apabila akan melakukan akses
     var token = req.headers['authorization'];
@@ -153,5 +153,21 @@ complaintRouter.get('/check', function(req, res) {
     res.status(200).send(decoded);
     });
 });
+
+// testing
+// DELETE all data compaints
+complaintRouter.delete('/complaints', async (req, res) => {
+    const complaints = await Complaint.deleteMany();
+
+    if (complaints) {
+        res.json({
+        message: 'all complaints removed'
+        })
+    } else {
+        res.status(404).json({
+        message: 'complaint not found'
+        })
+    }
+})
 
 export default complaintRouter;

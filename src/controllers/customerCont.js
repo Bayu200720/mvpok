@@ -1,11 +1,11 @@
 import Customer from '../models/customer.js'
+import Secretcode from '../models/secretcode.js'
 import express from 'express'
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcrypt'
 import Conf from '../config/config.js'
 import Auth from '../middleware/auth.js'
-
-
-
+import nodemailer from 'nodemailer'
+import crypto from 'crypto'
 import jwt from 'jsonwebtoken';
 
 var customerRouter = express.Router();
@@ -14,7 +14,33 @@ var customerRouter = express.Router();
 customerRouter.post("/register", async(req, res) => {
     try {
         const cust = new Customer(req.body);
-        await cust.save();
+        cust.save(function (err) {
+            if (err) { return res.status(500).send({ msg: err.message }); }
+    
+            // Create a verification token for this user
+            var token = new Secretcode({ _userId: cust._id, token: crypto.randomBytes(16).toString('hex') });
+    
+            // Save the verification token
+            token.save(function (err) {
+                if (err) { return res.status(500).send({ msg: err.message }); }
+    
+                // Send the email
+                var transporter = nodemailer.createTransport({
+                    host: 'smtp.ethereal.email',
+                    port: 587,
+                    auth: {
+                        user: process.env.MAIL,
+                        pass: process.env.PASS,
+                    }
+                });
+
+                var mailOptions = { from: process.env.MAIL, to: cust.email, subject: 'Account Verification Token', text: 'Hello,\n\n' + 'Please verify your account by clicking the link: \nhttp:\/\/' + req.headers.host + '\/confirmation\/' + cust.email + '\/' + token.token };
+                transporter.sendMail(mailOptions, function (err) {
+                    if (err) { return res.status(500).send({ msg: err.message }); }
+                    res.status(200).send('A verification email has been sent to ' + cust.email + '.');
+                });
+            });
+        });
         res.status(200).send({ cust });
     } catch (err) {
         res.status(400).send(err);
@@ -98,19 +124,22 @@ customerRouter.get('/logout',Auth,function(req,res){
 
 });
 
+//testing
 //DELETE all data customers
 customerRouter.delete('/customer', async (req, res) => {
     const cust = await Customer.deleteMany();
 
     if (cust) {
         res.json({
-        message: 'all custs removed'
+        message: 'all customers removed'
         })
     } else {
         res.status(404).json({
-        message: 'cust not found'
+        message: 'customer not found'
         })
     }
 })
+
+
 
 export default customerRouter;

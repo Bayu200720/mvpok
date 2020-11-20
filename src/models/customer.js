@@ -58,6 +58,10 @@ const customerSchema = new mongoose.Schema(
             unique: true,
             trim: true, // auto hapus spasi kiri dan kanan
         },
+        isVerified:{
+            type: Boolean,
+            default: false
+        },
         token:{
             type: String
         }
@@ -114,18 +118,18 @@ customerSchema.methods.deleteToken=function(token,cb){
 }
 
 //midleware buat hashing password
-customerSchema.pre("save", async function(next) {
-    const cust = this;
-    // console.log(cust);
-    if (cust.isModified("password")) {
-        cust.password = await bcrypt.hash(cust.password, 8);
-    }
-    if (cust.passwordConfirm) {
-        cust.passwordConfirm = await bcrypt.hash(cust.passwordConfirm, 8);
-    }
-    // this.passwordConfirm = undefined;
-    next();
-});
+// customerSchema.pre("save", async function(next) {
+//     const cust = this;
+//     // console.log(cust);
+//     if (cust.isModified("password")) {
+//         cust.password = await bcrypt.hash(cust.password, 8);
+//     }
+//     if (cust.passwordConfirm) {
+//         cust.passwordConfirm = await bcrypt.hash(cust.passwordConfirm, 8);
+//     }
+//     // this.passwordConfirm = undefined;
+//     next();
+// });
 
 const Customer = mongoose.model('Customer', customerSchema);
 
