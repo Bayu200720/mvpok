@@ -26,7 +26,7 @@ customerRouter.post('/registration', async (req, res) => {
         const NIKDuplicate = await Customer.find({ "NIK" : NIK }).count()
 
         if(usernameDuplicate + emailDuplicate + NIKDuplicate > 0){
-            res.status(202).json({ message: 'Username / Email / NIK Already Registered' });
+            res.status(401).json({ message: 'Username / Email / NIK Already Registered' });
         } else {
             Customer.create({
                 username : username,
@@ -130,11 +130,11 @@ customerRouter.post('/login', async (req, res) => {
                     cust.token=token;
                     res.status(200).send({ auth: true, token: token, "status":"logged in!"});
                 } else {
-                    res.status(202).json({"status":"wrong password."});
+                    res.status(401).json({"status":"wrong password."});
                 }
             });
         } else {
-            res.status(202).json({"status":"username not found"});
+            res.status(401).json({"status":"username not found"});
         }
     } catch(error){
         res.status(500).json({ error: error})
