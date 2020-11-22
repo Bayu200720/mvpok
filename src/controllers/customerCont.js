@@ -1,10 +1,12 @@
 import express from 'express'
 import bcrypt from 'bcrypt'
+import crypto from 'crypto'
 import Conf from '../config/config.js'
 import { v4 as uuidv4 } from 'uuid'
 import bodyParser from 'body-parser'
 import nodemailer from 'nodemailer'
-import jwt from 'jsonwebtoken';
+import generator from 'generate-password'
+import jwt from 'jsonwebtoken'
 import Customer from '../models/customer.js'
 
 var customerRouter = express.Router();
@@ -15,24 +17,22 @@ customerRouter.use(bodyParser.json());
 // ADD User
 customerRouter.post('/registration', async (req, res) => {
     try {
-        const{username, nama_lengkap, NIK, norek, email, password, isVerified} = req.body;
+        const{username, email, password, isVerified} = req.body;
 
         const saltRounds = 10;
         const hashedPw = await bcrypt.hash(password, saltRounds);
         const VerificationToken = uuidv4(email);
 
-        const usernameDuplicate = await Customer.find({ "username" : username  }).count()
-        const emailDuplicate = await Customer.find({ "email" : email }).count()
-        const NIKDuplicate = await Customer.find({ "NIK" : NIK }).count()
+        const emailDuplicate = await Customer.findOne({ "email" : email  })
 
-        if(usernameDuplicate + emailDuplicate + NIKDuplicate > 0){
-            res.status(401).json({ message: 'Username / Email / NIK Already Registered' });
+        if(emailDuplicate){
+            res.status(401).json({ message: 'This email Already Registered' });
         } else {
             Customer.create({
                 username : username,
-                nama_lengkap : nama_lengkap,
-                NIK : NIK,
-                norek : norek,
+                // nama_lengkap : nama_lengkap,
+                // no_ktp : no_ktp,
+                // norek : norek,
                 email : email,
                 password : hashedPw,
                 isVerified : isVerified,
@@ -54,17 +54,20 @@ customerRouter.post('/registration', async (req, res) => {
                             },
                         });
                         
-                          // send mail with defined transport object
+                        // send mail with defined transport object
                         let info = await transporter.sendMail({
-                            from: '"Bank BRI" <ugm.backend.05@gmail.com>', // sender address
+                            from: '"no-replay" <it.ugm05@gmail.com>', // sender address
                             to: email, // list of receivers
-                            subject: "Verifikasi Akun | Bank BRI", // Subject line
-                            text: "Silahkan melakukan verifikasi akun dengan klik link berikut ", // plain text body
-                            html: '<p>Silahkan verifikasi akun dengan klik link berikut. <a href=" http://cf82d7e6deb2.ngrok.io/cust/verification/'+VerificationToken+'">Verifikasi</a></p>', // html body
+                            subject: "Email Verification - BRImo", // Subject line
+                            html: 'Thank you for submitting your BRI Complaint Handling account!' + '<br><br>'+
+                                    'We need to verify your email address. Please click <a href=" http://cf82d7e6deb2.ngrok.io/cust/verification/'+VerificationToken+'">HERE</a> ' +
+                                    'to confirm your email address and complete the application process.<br><br>' +
+                                    'Thank you,'+ '<br>'+
+                                    'UGM 05 Team'+ '<br><br>',
                         });
                         
                         console.log("Message sent: %s", info.messageId); // Message sent: <b658f8ca-6296-ccf4-8306-87d57a0b4321@example.com>
-                        res.status(201).json({ message: 'Berhasil Mendaftar. Silahkan Cek Email untuk Verifikasi Akun.' });
+                        res.status(201).send('Successfully Registered. Please check your email for verification.' );
                     }
                 } catch (error) {
                     res.status(500).json(error);
@@ -88,14 +91,144 @@ customerRouter.get('/verification/:token', async (req, res) => {
             ListUser.isVerified = isVerified;
 
             await ListUser.save();
-            res.status(200).json({  message: 'Akun Berhasil Diverifikasi!' });
+            res.status(200).json('Your account has been verified!');
         } else {
-            res.status(404).json({ message: 'Akun Tidak Ditemukan!' });
+            res.status(404).json('Account not found');
         }
     } catch (error) {
         console.log(error)
     }
 });
+
+//UPDATE data user
+customerRouter.put('/detail/id', async (req,res) => {
+    
+})
+
+//FORGOT PASSWORD
+customerRouter.post('/forgot-password', async(req, res) => {
+    try{
+    Customer.findOne({ email: req.body.email }, async(err, customer) => {
+        if (!customer) return res.status(201).json({ msg: 'We were unable to find a user with that email.' });
+        if (customer.isVerified === false) return res.status(201).json({ msg: 'This account has not been verified. Please verify.' });
+
+        //Generate New Password
+        var newPassword = generator.generate({
+            length: 8,
+            numbers: true,
+            uppercase: true,
+            lowercase: true
+
+        })
+
+        // Hashed Password
+        var saltRounds = 12
+        const hashedPassword = await bcrypt.hash(newPassword, saltRounds)
+
+        //Changed Hashed Password
+        customer.password = hashedPassword
+        console.log(newPassword)
+        console.log(customer.password)
+        console.log(customer)
+
+        //Show in Postman only
+        //res.status(200).json(newPassword)
+
+        // Save the New Password
+        customer.save(function(err) {
+            if (err) { return res.status(500).json({ msg: err.message }); }
+
+            // Send the email contain new password
+            var transporter = nodemailer.createTransport({
+                service: "gmail",
+                host: "smtp.gmail.com",
+                port: 465,
+                secure: true,
+                auth: {
+                user: process.env.MAIL,
+                pass: process.env.PASS,
+                },
+            });
+
+            var info = ({
+                from: '"no-replay" <admin@BRImo>', // sender address
+                to: customer.email, // list of receivers
+                subject: "Reset Your BRI Complaint Handling Account Password", // Subject line
+                text: 'Dear '+ customer.username + ',' + '\n\n'+ 'Did you forget your password?\n\n'+
+                        'Please input your changed password account by input this new password: ' + newPassword + '\n\n'+
+                        'Thank you,\n'+
+                        'UGM 05 Team'
+                // html: '<p>Silahkan verifikasi akun dengan klik link B. <a href=" http://cf82d7e6deb2.ngrok.io/cust/reset/'+VerificationToken+'">Verifikasi</a></p>', // html body
+            });
+            transporter.sendMail(info, function(err) {
+                if (err) { return res.status(500).json({ msg: err.message }); }
+                res.status(200).send('A Changed Password has been sent to ' + customer.email + '.');
+                //res.status(200).json('A Changed Password has been sent to ' + customer.email + '.\n', 'Message sent: %s', info.messageId + '\n' + 'Preview URL: %s', nodemailer.getTestMessageUrl(info));
+            });
+        });
+
+    });
+}catch (error) {
+    res.status(500).json({ error: error })
+}
+})
+
+//CHANGE PASSWORD
+customerRouter.post('/change-password', async(req, res) => {
+    try {
+        var token = req.headers['authorization']
+    if (!token) 
+        return res.status(401).send({ auth: false, message: 'No token provided.' })
+        
+    jwt.verify(token, Conf.secret, async(err, decoded) => {
+        
+        if (err)
+            return res.status(500).send({ auth: false, message: 'Failed to authenticate token.'})
+
+            
+            const { email, password, newPassword } = req.body
+            const currentCustomer = await new Promise((resolve, reject) => {
+            Customer.find({ "email": email }, function(err, customer) {
+            if (err) reject(err)
+                resolve(customer)
+            })
+        })
+        if (currentCustomer[0]) {
+            bcrypt.compare(password, currentCustomer[0].password).then(async(result, err) => {
+                if (result) {
+                    if (err) return res.status(201).json("There is a problem registering the user")
+                    const customer = currentCustomer[0]
+
+                    // Hashed Password
+                    var saltRounds = 12
+                    const hashedPassword = await bcrypt.hash(newPassword, saltRounds)
+
+                    //Changed password to Hashed Password
+                    customer.password = hashedPassword
+                    // console.log(customer.newPassword)
+                    // console.log(customer.password)
+                    // console.log(customer)
+
+                    //Save New Password
+                    customer.save()
+
+                    res.status(200).json({ "status": "Successfully Changed Pasword!!" })
+                } else {
+                    res.status(201).json({
+                        "status": "wrong password"
+                    })
+                }
+            })
+        } else {
+            res.status(201).json({
+                "status": "email not found"
+            })
+        }
+        })
+    } catch (error) {
+        res.status(500).json({ error: error })
+    }
+})
 
 //login
 customerRouter.post('/login', async (req, res) => {
@@ -167,15 +300,6 @@ customerRouter.get('/customers', async (req,res) => {
     })
 });
 
-//logout user
-// customerRouter.get('/logout',Auth,function(req,res){
-//     req.user.deleteToken(req.token,(err,user)=>{
-//         if(err) return res.status(400).send(err);
-//         res.sendStatus(200);
-//     });
-
-// });
-
 //testing
 //DELETE all data customers
 customerRouter.delete('/customer', async (req, res) => {
@@ -192,58 +316,4 @@ customerRouter.delete('/customer', async (req, res) => {
     }
 })
 
-customerRouter.post("/confirmation/:email/:token", async (req, res, next) => {
-
-    // Find a matching token
-    Secretcode.findOne({ token: req.params.token }, function (err, token) {
-        if (!token) return res.status(400).send({ type: 'not-verified', msg: 'We were unable to find a valid token. Your token my have expired.' });
-
-        // If we found a token, find a matching user
-        Customer.findOne({ _id: token._userId, email: req.params.email }, function (err, user) {
-            if (!user) return res.status(400).send({ msg: 'We were unable to find a user for this token.' });
-            if (user.isVerified) return res.status(400).send({ type: 'already-verified', msg: 'This user has already been verified.' });
-
-            // Verify and save the user
-            user.isVerified = true;
-            user.save(function (err) {
-                if (err) { return res.status(500).send({ msg: err.message }); }
-                res.status(200).send("The account has been verified. Please log in.");
-            });
-        });
-    });
-});
-
-
-customerRouter.post("/resend", async (req, res, next) => {
-
-    Customer.findOne({ email: req.body.email }, function (err, user) {
-        if (!user) return res.status(400).send({ msg: 'We were unable to find a user with that email.' });
-        if (user.isVerified) return res.status(400).send({ msg: 'This account has already been verified. Please log in.' });
-
-        // Create a verification token, save it, and send email
-        var token = new Secretcode({ _userId: user._id, token: crypto.randomBytes(16).toString('hex') });
-
-        // Save the token
-        token.save(function (err) {
-            if (err) { return res.status(500).send({ msg: err.message }); }
-
-            // Send the email
-            var transporter = nodemailer.createTransport({
-                host: 'smtp.ethereal.email',
-                port: 587,
-                auth: {
-                    user: process.env.MAIL,
-                    pass: process.env.PASS,
-                }
-            });
-
-            var mailOptions = { from: process.env.MAIL, to: user.email, subject: 'Account Verification Token', text: 'Hello,\n\n' + 'Please verify your account by clicking the link: \nhttp:\/\/' + req.headers.host + '\/cust/confirmation\/' + user.email + '\/' + token.token };
-            transporter.sendMail(mailOptions, function (err) {
-                if (err) { return res.status(500).send({ msg: err.message }); }
-                res.status(200).send('A verification email has been sent to ' + user.email + '.');
-            });
-        });
-
-    });
-});
 export default customerRouter;

@@ -3,21 +3,21 @@ import mongoose from 'mongoose'
 const customerSchema = new mongoose.Schema(
     {
         username: {
-        type: String,
-        required: true,
+            type: String,
+            required: true,
         },
         nama_lengkap: {
-        type: String,
-        required: true,
-        },
-        NIK: {
             type: String,
-            required: true,
+            // required: true,
+        },
+        no_ktp: {
+            type: String,
+            // required: true,
             unique: true,
         },
-        norek: {
+        no_rekening: {
             type: String,
-            required: true,
+            // required: true,
             unique: true,
         },
         email: {
@@ -39,6 +39,8 @@ const customerSchema = new mongoose.Schema(
             type: String,
             required: true,
         },
+        resetToken:String,
+        expireToken:Date,
         role: {
             type: Number,
             default: 0,
