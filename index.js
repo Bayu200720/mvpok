@@ -1,10 +1,8 @@
 import express from 'express'
 import dotenv from 'dotenv'
 import mongoose from 'mongoose'
-import bodyParser from 'body-parser';
 import customerRouter from './src/controllers/customerCont.js';
 import complaintRouter from './src/controllers/complaintCont.js';
-
 
 const app = express()
 dotenv.config()
@@ -17,11 +15,6 @@ app.get('/', (req, res, next) => {
 app.use((err, req, res, next) => {
     res.send(err.message)
 })
-
-//app.use(fileupload());
-// app.use('/uploads', express.static('uploads'));
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
 
 app.use('/cust', customerRouter);
 app.use('/complaint', complaintRouter);
