@@ -1,16 +1,65 @@
 import Complaint from '../models/Complaint.js';
 import CS from '../models/cs.js';
 import express from 'express';
+import bcrypt from 'bcrypt';
 import bodyParser from 'body-parser';
 import jwt from 'jsonwebtoken';
 import Conf from '../config.js';
 import Customer from '../models/customer.js';
 import SPV from '../models/SPV.js';
+import multer from 'multer';
+
 
 var complaintRouter = express.Router();
 
 complaintRouter.use(bodyParser.urlencoded({ extended: false }));
 complaintRouter.use(bodyParser.json());
+
+//define storage for the images
+
+const storage = multer.diskStorage({
+    //destination for files
+    destination: function (request, file, callback) {
+      callback(null, './uploads');
+    },
+  
+    //add back the extension
+    filename: function (request, file, callback) {
+      callback(null, Date.now() + file.originalname);
+    },
+  });
+  
+  //upload parameters for multer
+  const upload = multer({
+    storage: storage,
+    limits: {
+      fieldSize: 1024 * 1024 * 3,
+    },
+  });
+
+//CREATE komplain role SPV
+complaintRouter.post('/create_Komplain',upload.single('gambar') ,async (req,res) => {
+  //  console.log(req.file.filename);
+    console.log(req.body);
+    const komplain = new Complaint({
+        judul: req.body.judul,
+        detail_komplain: req.body.detail_komplain,
+        gambar:req.file.filename,
+        id_kategori:"",
+        id_cs:"",
+        id_customer:"",
+        id_tag:0 
+      });
+      try {
+          const kom = await komplain.save();
+
+          res.status(200).json(kom);
+      } catch (error) {
+          console.log(error);
+      }
+});
+
+
 
 //CREATE complaint role customer
 complaintRouter.post('/create', async (req,res) => {
@@ -38,7 +87,7 @@ complaintRouter.post('/create', async (req,res) => {
                 res.status(400).send(err);
             }  
         } else {
-                res.status(500).send(` Tidak Memiliki Wewenang`);
+                res.status(500).send(` Tidak Memiliki Wewenang!!`);
         }
     })
 });
