@@ -182,7 +182,7 @@ responRouter.get('/get-respon-by-cs', async (req,res) => {
 
 
 //akumulasi Rating role SPV
-responRoute.get('/akumulasiRating', async (req,res) => {
+responRouter.get('/akumulasiRating', async (req,res) => {
 
     //header apabila akan melakukan akses
     var token = req.headers['x-access-token'];

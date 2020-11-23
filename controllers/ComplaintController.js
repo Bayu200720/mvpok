@@ -1,7 +1,6 @@
 import Complaint from '../models/Complaint.js';
 import CS from '../models/cs.js';
 import express from 'express';
-import bcrypt from 'bcrypt';
 import bodyParser from 'body-parser';
 import jwt from 'jsonwebtoken';
 import Conf from '../config.js';
